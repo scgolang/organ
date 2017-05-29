@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/scgolang/midi"
 	"github.com/scgolang/sc"
 )
@@ -15,36 +16,33 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	group, err := client.AddDefaultGroup()
+	if err := client.SendDef(masterDef); err != nil {
+		log.Fatal(err)
+	}
+	masterGroup, err := client.AddDefaultGroup()
+	if err != nil {
+		log.Fatal(err)
+	}
+	var (
+		id   = client.NextSynthID()
+		ctls = map[string]float32{"in": 3}
+	)
+	if _, err := masterGroup.Synth("organ_master", id, sc.AddToTail, ctls); err != nil {
+		log.Fatal(err)
+	}
+	var synths [127]*sc.Synth
+
+	group, err := client.Group(int32(2), sc.AddToTail, sc.DefaultGroupID)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if err := client.SendDef(def); err != nil {
 		log.Fatal(err)
 	}
-	devices, err := midi.Devices()
+	packets, err := getPacketChan()
 	if err != nil {
 		log.Fatal(err)
 	}
-	var keystation *midi.Device
-	for _, d := range devices {
-		if strings.Contains(strings.ToLower(d.Name), "keystation") {
-			keystation = d
-			break
-		}
-	}
-	if keystation == nil {
-		log.Fatal("no keystation detected")
-	}
-	if err := keystation.Open(); err != nil {
-		log.Fatal(err)
-	}
-	packets, err := keystation.Packets()
-	if err != nil {
-		log.Fatal(err)
-	}
-	var synths [127]*sc.Synth
-
 	for pkt := range packets {
 		if pkt.Err != nil {
 			log.Fatal(pkt.Err)
@@ -58,13 +56,14 @@ func main() {
 			}
 			continue
 		}
-		ctls := map[string]float32{
+		ctls = map[string]float32{
 			"amp":         float32(pkt.Data[2]) / float32(127),
 			"fundamental": sc.Midicps(float32(pkt.Data[1])),
 			"gate":        gate,
+			"out":         3,
 		}
-		id := client.NextSynthID()
-		synth, err := group.Synth("organ", id, sc.AddToTail, ctls)
+		id = client.NextSynthID()
+		synth, err := group.Synth("organ_voice", id, sc.AddToTail, ctls)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -72,10 +71,11 @@ func main() {
 	}
 }
 
-var def = sc.NewSynthdef("organ", func(params sc.Params) sc.Ugen {
+var def = sc.NewSynthdef("organ_voice", func(params sc.Params) sc.Ugen {
 	const numPartials = 5
 
 	var (
+		out         = params.Add("out", 0)
 		amp         = params.Add("amp", 0.9)
 		fundamental = params.Add("fundamental", 440)
 		gate        = params.Add("gate", 1)
@@ -92,8 +92,21 @@ var def = sc.NewSynthdef("organ", func(params sc.Params) sc.Ugen {
 		}.Rate(sc.KR))
 	)
 	return sc.Out{
-		Bus:      sc.C(0),
+		Bus:      out,
 		Channels: sc.Multi(sig, sig),
+	}.Rate(sc.AR)
+})
+
+var masterDef = sc.NewSynthdef("organ_master", func(params sc.Params) sc.Ugen {
+	var (
+		in  = params.Add("in", 0)
+		out = params.Add("out", 0)
+	)
+	return sc.Out{
+		Bus: out,
+		Channels: sc.Limiter{
+			In: sc.In{Bus: in, NumChannels: 2}.Rate(sc.AR),
+		}.Rate(sc.AR),
 	}.Rate(sc.AR)
 })
 
@@ -106,4 +119,26 @@ func getVoices(n int, fundamental, amp sc.Input) []sc.Input {
 		}.Rate(sc.AR).Mul(voiceAmp)
 	}
 	return voices
+}
+
+func getPacketChan() (<-chan midi.Packet, error) {
+	devices, err := midi.Devices()
+	if err != nil {
+		return nil, err
+	}
+	var keystation *midi.Device
+
+	for _, d := range devices {
+		if strings.Contains(strings.ToLower(d.Name), "keystation") {
+			keystation = d
+			break
+		}
+	}
+	if keystation == nil {
+		return nil, errors.New("no keystation detected")
+	}
+	if err := keystation.Open(); err != nil {
+		return nil, err
+	}
+	return keystation.Packets()
 }
