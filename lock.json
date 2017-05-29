@@ -1,12 +1,17 @@
 {
-    "memo": "",
+    "memo": "6c89531ad009fa31d005096bb43b0748d946feeccdf1aaed20c9c7b0e117ce42",
     "projects": [
         {
             "name": "github.com/awalterschulze/gographviz",
-            "branch": "master",
-            "revision": "a57a291f429bd96639e4081ee6682459f5c61b6f",
+            "version": "v2.0",
+            "revision": "c84395e536e1a1199093a4e6253d1bee99e4cd2a",
             "packages": [
-                "."
+                ".",
+                "ast",
+                "internal/errors",
+                "internal/lexer",
+                "internal/parser",
+                "internal/token"
             ]
         },
         {
@@ -19,15 +24,15 @@
         },
         {
             "name": "github.com/pkg/errors",
-            "branch": "master",
-            "revision": "c605e284fe17294bda444b34710735b29d1a9d90",
+            "version": "v0.8.0",
+            "revision": "3866ebc348c54054262feae422da428fe6cf147d",
             "packages": [
                 "."
             ]
         },
         {
             "name": "github.com/scgolang/midi",
-            "branch": "master",
+            "version": "v0.2.0",
             "revision": "dfadd4211cf395fe7f15c3e2f5107b95df17f3f3",
             "packages": [
                 "."
@@ -35,7 +40,7 @@
         },
         {
             "name": "github.com/scgolang/osc",
-            "branch": "master",
+            "version": "v0.10.0",
             "revision": "c682aec2f858d4243bc62eb441ce897f28f9ef53",
             "packages": [
                 "."
@@ -44,7 +49,7 @@
         {
             "name": "github.com/scgolang/sc",
             "branch": "master",
-            "revision": "a0f9b23103cd5105db2b07b889cb1c90f5f75e37",
+            "revision": "4d9e02c94ab4acee5e24d80355e1dc15a4d13270",
             "packages": [
                 "."
             ]
