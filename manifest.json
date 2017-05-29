@@ -1,0 +1,10 @@
+{
+    "dependencies": {
+        "github.com/scgolang/midi": {
+            "branch": "master"
+        },
+        "github.com/scgolang/sc": {
+            "branch": "master"
+        }
+    }
+}

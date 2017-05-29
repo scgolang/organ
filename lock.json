@@ -1,0 +1,53 @@
+{
+    "memo": "",
+    "projects": [
+        {
+            "name": "github.com/awalterschulze/gographviz",
+            "branch": "master",
+            "revision": "a57a291f429bd96639e4081ee6682459f5c61b6f",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/imdario/go-ulid",
+            "branch": "master",
+            "revision": "80e2735d1c2c2b1d963bccaa2306f67e5f8d5da9",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/pkg/errors",
+            "branch": "master",
+            "revision": "c605e284fe17294bda444b34710735b29d1a9d90",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/scgolang/midi",
+            "branch": "master",
+            "revision": "dfadd4211cf395fe7f15c3e2f5107b95df17f3f3",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/scgolang/osc",
+            "branch": "master",
+            "revision": "c682aec2f858d4243bc62eb441ce897f28f9ef53",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/scgolang/sc",
+            "branch": "master",
+            "revision": "a0f9b23103cd5105db2b07b889cb1c90f5f75e37",
+            "packages": [
+                "."
+            ]
+        }
+    ]
+}
