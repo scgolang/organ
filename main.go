@@ -44,9 +44,22 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var (
+		pbend = float32(1)
+	)
 	for pkt := range packets {
 		if pkt.Err != nil {
 			log.Fatal(pkt.Err)
+		}
+		if pkt.Data[0] == 0xE0 { // Pitch bend
+			pbend = pbendRange(int(pkt.Data[2]))
+			if err := syncActiveVoices(synths, pbend); err != nil {
+				log.Fatal(err)
+			}
+			continue
+		}
+		if pkt.Data[0] != 0x90 {
+			continue
 		}
 		gate := float32(0)
 		if pkt.Data[2] > 0 {
@@ -55,11 +68,13 @@ func main() {
 			if err := synths[pkt.Data[1]].Set(map[string]float32{"gate": gate}); err != nil {
 				log.Fatal(err)
 			}
+			synths[pkt.Data[1]] = nil
 			continue
 		}
 		ctls = map[string]float32{
 			"amp":         float32(pkt.Data[2]) / float32(127),
 			"fundamental": sc.Midicps(float32(pkt.Data[1])),
+			"pbend":       pbend,
 			"gate":        gate,
 			"out":         bus,
 		}
@@ -92,8 +107,9 @@ var def = sc.NewSynthdef("organ_voice", func(params sc.Params) sc.Ugen {
 		out         = params.Add("out", 0)
 		amp         = params.Add("amp", 0.9)
 		fundamental = params.Add("fundamental", 440)
+		pbend       = params.Add("pbend", 1)
 		gate        = params.Add("gate", 1)
-		voices      = getVoices(numPartials, fundamental, amp)
+		voices      = getVoices(numPartials, fundamental, pbend, amp)
 		sig         = sc.Mix(sc.AR, voices).Mul(sc.EnvGen{
 			Done: sc.FreeEnclosing,
 			Env: sc.EnvADSR{
@@ -111,12 +127,15 @@ var def = sc.NewSynthdef("organ_voice", func(params sc.Params) sc.Ugen {
 	}.Rate(sc.AR)
 })
 
-func getVoices(n int, fundamental, amp sc.Input) []sc.Input {
+func getVoices(n int, fundamental, pbend, amp sc.Input) []sc.Input {
 	voices := make([]sc.Input, n)
 	for i := range voices {
-		voiceAmp := sc.C(float32(1) / float32(math.Pow(2, float64(i+1)))).Mul(amp)
+		var (
+			voiceAmp   = sc.C(1 / float32(math.Pow(2, float64(i+1)))).Mul(amp)
+			pitchScale = sc.C(1 / float32(math.Pow(2, float64(i))))
+		)
 		voices[i] = sc.SinOsc{
-			Freq: fundamental.Mul(sc.C(float32(1) / float32(math.Pow(2, float64(i))))),
+			Freq: fundamental.Mul(pitchScale).Mul(pbend),
 		}.Rate(sc.AR).Mul(voiceAmp)
 	}
 	return voices
@@ -142,4 +161,26 @@ func getPacketChan() (<-chan midi.Packet, error) {
 		return nil, err
 	}
 	return keystation.Packets()
+}
+
+func pbendRange(i int) float32 {
+	if i == 63 {
+		return 1
+	}
+	x := (2 * (float64(i) / 127)) - 1
+	return float32(math.Pow(2, x))
+}
+
+func syncActiveVoices(voices [127]*sc.Synth, pbend float32) error {
+	for _, voice := range voices {
+		if voice == nil {
+			continue
+		}
+		if err := voice.Set(map[string]float32{
+			"pbend": pbend,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
