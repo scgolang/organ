@@ -14,12 +14,7 @@
 
 package gographviz
 
-import (
-	"fmt"
-	"strings"
-)
-
-// Graph is the analysed representation of the Graph parsed from the DOT format.
+//The analysed representation of the Graph parsed from the DOT format.
 type Graph struct {
 	Attrs     Attrs
 	Name      string
@@ -31,7 +26,7 @@ type Graph struct {
 	Relations *Relations
 }
 
-// NewGraph creates a new empty graph, ready to be populated.
+//Creates a new empty graph, ready to be populated.
 func NewGraph() *Graph {
 	return &Graph{
 		Attrs:     make(Attrs),
@@ -45,104 +40,75 @@ func NewGraph() *Graph {
 	}
 }
 
-// SetStrict sets whether a graph is strict.
-// If the graph is strict then multiple edges are not allowed between the same pairs of nodes,
-// see dot man page.
-func (g *Graph) SetStrict(strict bool) error {
-	g.Strict = strict
-	return nil
+//If the graph is strict then multiple edges are not allowed between the same pairs of nodes,
+//see dot man page.
+func (this *Graph) SetStrict(strict bool) {
+	this.Strict = strict
 }
 
-// SetDir sets whether the graph is directed (true) or undirected (false).
-func (g *Graph) SetDir(dir bool) error {
-	g.Directed = dir
-	return nil
+//Sets whether the graph is directed (true) or undirected (false).
+func (this *Graph) SetDir(dir bool) {
+	this.Directed = dir
 }
 
-// SetName sets the graph name.
-func (g *Graph) SetName(name string) error {
-	g.Name = name
-	return nil
+//Sets the graph name.
+func (this *Graph) SetName(name string) {
+	this.Name = name
 }
 
-// AddPortEdge adds an edge to the graph from node src to node dst.
-// srcPort and dstPort are the port the node ports, leave as empty strings if it is not required.
-// This does not imply the adding of missing nodes.
-func (g *Graph) AddPortEdge(src, srcPort, dst, dstPort string, directed bool, attrs map[string]string) error {
-	as, err := NewAttrs(attrs)
-	if err != nil {
-		return err
+//Adds an edge to the graph from node src to node dst.
+//srcPort and dstPort are the port the node ports, leave as empty strings if it is not required.
+//This does not imply the adding of missing nodes.
+func (this *Graph) AddPortEdge(src, srcPort, dst, dstPort string, directed bool, attrs map[string]string) {
+	this.Edges.Add(&Edge{src, srcPort, dst, dstPort, directed, attrs})
+}
+
+//Adds an edge to the graph from node src to node dst.
+//This does not imply the adding of missing nodes.
+//If directed is set to true then SetDir(true) must also be called or there will be a syntax error in the output.
+func (this *Graph) AddEdge(src, dst string, directed bool, attrs map[string]string) {
+	this.AddPortEdge(src, "", dst, "", directed, attrs)
+}
+
+//Adds a node to a graph/subgraph.
+//If not subgraph exists use the name of the main graph.
+//This does not imply the adding of a missing subgraph.
+func (this *Graph) AddNode(parentGraph string, name string, attrs map[string]string) {
+	this.Nodes.Add(&Node{name, attrs})
+	this.Relations.Add(parentGraph, name)
+}
+
+func (this *Graph) getAttrs(graphName string) Attrs {
+	if this.Name == graphName {
+		return this.Attrs
 	}
-	g.Edges.Add(&Edge{src, srcPort, dst, dstPort, directed, as})
-	return nil
-}
-
-// AddEdge adds an edge to the graph from node src to node dst.
-// This does not imply the adding of missing nodes.
-// If directed is set to true then SetDir(true) must also be called or there will be a syntax error in the output.
-func (g *Graph) AddEdge(src, dst string, directed bool, attrs map[string]string) error {
-	return g.AddPortEdge(src, "", dst, "", directed, attrs)
-}
-
-// AddNode adds a node to a graph/subgraph.
-// If not subgraph exists use the name of the main graph.
-// This does not imply the adding of a missing subgraph.
-func (g *Graph) AddNode(parentGraph string, name string, attrs map[string]string) error {
-	as, err := NewAttrs(attrs)
-	if err != nil {
-		return err
-	}
-	g.Nodes.Add(&Node{name, as})
-	g.Relations.Add(parentGraph, name)
-	return nil
-}
-
-func (g *Graph) getAttrs(graphName string) (Attrs, error) {
-	if g.Name == graphName {
-		return g.Attrs, nil
-	}
-	sub, ok := g.SubGraphs.SubGraphs[graphName]
+	g, ok := this.SubGraphs.SubGraphs[graphName]
 	if !ok {
-		return nil, fmt.Errorf("graph or subgraph %s does not exist", graphName)
+		panic("graph or subgraph " + graphName + " does not exist")
 	}
-	return sub.Attrs, nil
+	return g.Attrs
 }
 
-// AddAttr adds an attribute to a graph/subgraph.
-func (g *Graph) AddAttr(parentGraph string, field string, value string) error {
-	a, err := g.getAttrs(parentGraph)
-	if err != nil {
-		return err
-	}
-	return a.Add(field, value)
+//Adds an attribute to a graph/subgraph.
+func (this *Graph) AddAttr(parentGraph string, field string, value string) {
+	this.getAttrs(parentGraph).Add(field, value)
 }
 
-// AddSubGraph adds a subgraph to a graph/subgraph.
-func (g *Graph) AddSubGraph(parentGraph string, name string, attrs map[string]string) error {
-	g.Relations.Add(parentGraph, name)
-	g.SubGraphs.Add(name)
+//Adds a subgraph to a graph/subgraph.
+func (this *Graph) AddSubGraph(parentGraph string, name string, attrs map[string]string) {
+	this.Relations.Add(parentGraph, name)
+	this.SubGraphs.Add(name)
 	for key, value := range attrs {
-		if err := g.AddAttr(name, key, value); err != nil {
-			return err
-		}
+		this.AddAttr(name, key, value)
 	}
-	return nil
 }
 
-// IsNode returns whether a given node name exists as a node in the graph.
-func (g *Graph) IsNode(name string) bool {
-	_, ok := g.Nodes.Lookup[name]
+func (this *Graph) IsNode(name string) bool {
+	_, ok := this.Nodes.Lookup[name]
 	return ok
 }
 
-// IsSubGraph returns whether a given subgraph name exists as a subgraph in the graph.
-func (g *Graph) IsSubGraph(name string) bool {
-	_, ok := g.SubGraphs.SubGraphs[name]
+func (this *Graph) IsSubGraph(name string) bool {
+	_, ok := this.SubGraphs.SubGraphs[name]
 	return ok
-}
-
-func (g *Graph) isClusterSubGraph(name string) bool {
-	isSubGraph := g.IsSubGraph(name)
-	isCluster := strings.HasPrefix(name, "cluster")
-	return isSubGraph && isCluster
 }

@@ -21,10 +21,9 @@ type unixConn interface {
 type UnixConn struct {
 	unixConn
 
-	closeChan  chan struct{}
-	ctx        context.Context
-	errChan    chan error
-	exactMatch bool
+	closeChan chan struct{}
+	ctx       context.Context
+	errChan   chan error
 }
 
 // DialUnix opens a unix socket for OSC communication.
@@ -112,18 +111,10 @@ func (conn *UnixConn) SendTo(addr net.Addr, p Packet) error {
 // Note that this means that errors returned from a dispatcher method will kill your server.
 // If context.Canceled or context.DeadlineExceeded are encountered they will be returned directly.
 func (conn *UnixConn) Serve(numWorkers int, dispatcher Dispatcher) error {
-	return serve(conn, numWorkers, conn.exactMatch, dispatcher)
+	return serve(conn, numWorkers, dispatcher)
 }
 
 // TempSocket creates an absolute path to a temporary socket file.
 func TempSocket() string {
 	return filepath.Join(os.TempDir(), ulid.New().String()) + ".sock"
-}
-
-// SetExactMatch changes the behavior of the Serve method so that
-// messages will only be dispatched to methods whose addresses
-// match the message's address exactly.
-// This should provide some performance improvement.
-func (conn *UnixConn) SetExactMatch(value bool) {
-	conn.exactMatch = value
 }

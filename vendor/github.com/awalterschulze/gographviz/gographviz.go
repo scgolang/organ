@@ -20,39 +20,34 @@ package gographviz
 
 import (
 	"github.com/awalterschulze/gographviz/ast"
-	"github.com/awalterschulze/gographviz/internal/parser"
+	"github.com/awalterschulze/gographviz/parser"
 )
 
 var _ Interface = NewGraph()
 
-//Interface allows you to parse the graph into your own structure.
+//Implementing this interface allows you to parse the graph into your own structure.
 type Interface interface {
-	SetStrict(strict bool) error
-	SetDir(directed bool) error
-	SetName(name string) error
-	AddPortEdge(src, srcPort, dst, dstPort string, directed bool, attrs map[string]string) error
-	AddEdge(src, dst string, directed bool, attrs map[string]string) error
-	AddNode(parentGraph string, name string, attrs map[string]string) error
-	AddAttr(parentGraph string, field, value string) error
-	AddSubGraph(parentGraph string, name string, attrs map[string]string) error
+	SetStrict(strict bool)
+	SetDir(directed bool)
+	SetName(name string)
+	AddPortEdge(src, srcPort, dst, dstPort string, directed bool, attrs map[string]string)
+	AddEdge(src, dst string, directed bool, attrs map[string]string)
+	AddNode(parentGraph string, name string, attrs map[string]string)
+	AddAttr(parentGraph string, field, value string)
+	AddSubGraph(parentGraph string, name string, attrs map[string]string)
 	String() string
 }
 
-//Parse parses the buffer into a abstract syntax tree representing the graph.
+//Parses the buffer into a abstract syntax tree representing the graph.
 func Parse(buf []byte) (*ast.Graph, error) {
 	return parser.ParseBytes(buf)
 }
 
-//ParseString parses the buffer into a abstract syntax tree representing the graph.
-func ParseString(buf string) (*ast.Graph, error) {
-	return parser.ParseBytes([]byte(buf))
-}
-
-//Read parses and creates a new Graph from the data.
+//Parses and creates a new Graph from the data.
 func Read(buf []byte) (*Graph, error) {
 	st, err := Parse(buf)
 	if err != nil {
 		return nil, err
 	}
-	return NewAnalysedGraph(st)
+	return NewAnalysedGraph(st), nil
 }

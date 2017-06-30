@@ -23,6 +23,9 @@ func (s *Synth) Get(controlName string) (float32, error) {
 
 // Set the value of a synth control.
 func (s *Synth) Set(ctls map[string]float32) error {
+	if s == nil {
+		println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> s is nil!!!!!!")
+	}
 	msg := osc.Message{
 		Address: setSynthNodeAddress,
 		Arguments: osc.Arguments{

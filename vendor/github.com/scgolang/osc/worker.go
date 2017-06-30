@@ -10,7 +10,6 @@ type Worker struct {
 	Dispatcher Dispatcher
 	ErrChan    chan error
 	Ready      chan<- Worker
-	ExactMatch bool
 }
 
 // Run runs the worker.
@@ -26,7 +25,7 @@ func (w Worker) Run() {
 			if err != nil {
 				w.ErrChan <- err
 			}
-			if err := w.Dispatcher.Dispatch(bundle, w.ExactMatch); err != nil {
+			if err := w.Dispatcher.Dispatch(bundle); err != nil {
 				w.ErrChan <- errors.Wrap(err, "dispatch bundle")
 			}
 		case MessageChar:
@@ -34,7 +33,7 @@ func (w Worker) Run() {
 			if err != nil {
 				w.ErrChan <- err
 			}
-			if err := w.Dispatcher.Invoke(msg, w.ExactMatch); err != nil {
+			if err := w.Dispatcher.Invoke(msg); err != nil {
 				w.ErrChan <- errors.Wrap(err, "dispatch message")
 			}
 		default:

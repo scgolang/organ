@@ -18,13 +18,13 @@ import (
 	"sort"
 )
 
-// SubGraph represents a Subgraph.
+//Represents a Subgraph.
 type SubGraph struct {
 	Attrs Attrs
 	Name  string
 }
 
-// NewSubGraph creates a new Subgraph.
+//Creates a new Subgraph.
 func NewSubGraph(name string) *SubGraph {
 	return &SubGraph{
 		Attrs: make(Attrs),
@@ -32,33 +32,32 @@ func NewSubGraph(name string) *SubGraph {
 	}
 }
 
-// SubGraphs represents a set of SubGraphs.
+//Represents a set of SubGraphs.
 type SubGraphs struct {
 	SubGraphs map[string]*SubGraph
 }
 
-// NewSubGraphs creates a new blank set of SubGraphs.
+//Creates a new blank set of SubGraphs.
 func NewSubGraphs() *SubGraphs {
 	return &SubGraphs{make(map[string]*SubGraph)}
 }
 
-// Add adds and creates a new Subgraph to the set of SubGraphs.
-func (subgraphs *SubGraphs) Add(name string) {
-	if _, ok := subgraphs.SubGraphs[name]; !ok {
-		subgraphs.SubGraphs[name] = NewSubGraph(name)
+//Adds and creates a new Subgraph to the set of SubGraphs.
+func (this *SubGraphs) Add(name string) {
+	if _, ok := this.SubGraphs[name]; !ok {
+		this.SubGraphs[name] = NewSubGraph(name)
 	}
 }
 
-// Sorted returns a sorted list of SubGraphs.
-func (subgraphs *SubGraphs) Sorted() []*SubGraph {
+func (this *SubGraphs) Sorted() []*SubGraph {
 	keys := make([]string, 0)
-	for key := range subgraphs.SubGraphs {
+	for key := range this.SubGraphs {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	s := make([]*SubGraph, len(keys))
 	for i, key := range keys {
-		s[i] = subgraphs.SubGraphs[key]
+		s[i] = this.SubGraphs[key]
 	}
 	return s
 }

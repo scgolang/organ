@@ -128,7 +128,7 @@ type readSender interface {
 	read([]byte) (int, net.Addr, error)
 }
 
-func serve(r readSender, numWorkers int, exactMatch bool, dispatcher Dispatcher) error {
+func serve(r readSender, numWorkers int, dispatcher Dispatcher) error {
 	if err := checkDispatcher(dispatcher); err != nil {
 		return err
 	}
@@ -142,7 +142,6 @@ func serve(r readSender, numWorkers int, exactMatch bool, dispatcher Dispatcher)
 			Dispatcher: dispatcher,
 			ErrChan:    errChan,
 			Ready:      ready,
-			ExactMatch: exactMatch,
 		}.Run()
 	}
 	go workerLoop(r, ready, errChan)

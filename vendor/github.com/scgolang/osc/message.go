@@ -81,10 +81,7 @@ func (msg Message) Equal(other Packet) bool {
 }
 
 // Match returns true if the address of the OSC Message matches the given address.
-func (msg Message) Match(address string, exactMatch bool) (bool, error) {
-	if exactMatch {
-		return address == msg.Address, nil
-	}
+func (msg Message) Match(address string) (bool, error) {
 	// Verify same number of parts.
 	if !VerifyParts(address, msg.Address) {
 		return false, nil

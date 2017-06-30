@@ -29,23 +29,23 @@ type MessageHandler interface {
 type Dispatcher map[string]MessageHandler
 
 // Dispatch invokes an OSC bundle's messages.
-func (d Dispatcher) Dispatch(b Bundle, exactMatch bool) error {
+func (d Dispatcher) Dispatch(b Bundle) error {
 	var (
 		now = time.Now()
 		tt  = b.Timetag.Time()
 	)
 	if tt.Before(now) {
-		return d.immediately(b, exactMatch)
+		return d.immediately(b)
 	}
 	<-time.After(tt.Sub(now))
-	return d.immediately(b, exactMatch)
+	return d.immediately(b)
 }
 
 // immediately invokes an OSC bundle immediately.
-func (d Dispatcher) immediately(b Bundle, exactMatch bool) error {
+func (d Dispatcher) immediately(b Bundle) error {
 	for _, p := range b.Packets {
 		errs := []string{}
-		if err := d.invoke(p, exactMatch); err != nil {
+		if err := d.invoke(p); err != nil {
 			errs = append(errs, err.Error())
 		}
 		if len(errs) > 0 {
@@ -57,21 +57,21 @@ func (d Dispatcher) immediately(b Bundle, exactMatch bool) error {
 }
 
 // invoke invokes an OSC packet, which could be a message or a bundle of messages.
-func (d Dispatcher) invoke(p Packet, exactMatch bool) error {
+func (d Dispatcher) invoke(p Packet) error {
 	switch x := p.(type) {
 	case Message:
-		return d.Invoke(x, exactMatch)
+		return d.Invoke(x)
 	case Bundle:
-		return d.immediately(x, exactMatch)
+		return d.immediately(x)
 	default:
 		return errors.Errorf("unsupported type for dispatcher: %T", p)
 	}
 }
 
 // Invoke invokes an OSC message.
-func (d Dispatcher) Invoke(msg Message, exactMatch bool) error {
+func (d Dispatcher) Invoke(msg Message) error {
 	for address, handler := range d {
-		matched, err := msg.Match(address, exactMatch)
+		matched, err := msg.Match(address)
 		if err != nil {
 			return err
 		}

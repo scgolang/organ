@@ -15,7 +15,7 @@ SCLANG = /usr/bin/xvfb-run --server-args="-screen 0, 1280x800x24" $(SCLANG)
 endif
 
 FIXTURES = testdata/AllpassExample.scsyndef          \
-           testdata/AllpassnExample.scsyndef         \
+           testdata/BAllPassExample.scsyndef         \
            testdata/BPFExample.scsyndef              \
            testdata/BRFExample.scsyndef              \
            testdata/Balance2Test.scsyndef            \
@@ -38,6 +38,7 @@ FIXTURES = testdata/AllpassExample.scsyndef          \
            testdata/Dust2Test.scsyndef               \
            testdata/EnvgenTest.scsyndef              \
            testdata/FSinOscExample.scsyndef          \
+           testdata/FittonBubbles.scsyndef           \
            testdata/FormletTest.scsyndef             \
            testdata/FreeVerbTest.scsyndef            \
            testdata/GateTest.scsyndef                \
@@ -62,6 +63,12 @@ FIXTURES = testdata/AllpassExample.scsyndef          \
            testdata/SineTone2.scsyndef               \
            testdata/SineTone3.scsyndef               \
            testdata/SineTone4.scsyndef               \
+           testdata/SoundInTest0.scsyndef            \
+           testdata/SoundInTest00.scsyndef           \
+           testdata/SoundInTest01.scsyndef           \
+           testdata/SoundInTest02.scsyndef           \
+           testdata/SoundInTest12.scsyndef           \
+           testdata/SoundInTest20.scsyndef           \
            testdata/Sum3.scsyndef                    \
            testdata/TestEnvADSR.scsyndef             \
            testdata/THX1.scsyndef                    \
@@ -70,6 +77,7 @@ FIXTURES = testdata/AllpassExample.scsyndef          \
            testdata/foo.scsyndef                     \
            testdata/bar.scsyndef                     \
            testdata/baz.scsyndef                     \
+           testdata/negExample.scsyndef              \
            testdata/sub.scsyndef
 
 # Default target
@@ -89,7 +97,7 @@ coverage:
 	@go test -coverprofile cover.out && go tool cover -html cover.out -o cover.html
 
 clean:
-	@rm -rf *~ *.gosyndef *.svg *.dot *.json *.xml fixtures/*.scsyndef
+	@rm -rf *~ *.gosyndef *.svg *.dot *.json *.xml testdata/*.scsyndef
 
 test: $(FIXTURES)
 	@go test

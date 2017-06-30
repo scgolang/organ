@@ -56,6 +56,24 @@ func (mn *MultiNode) MulAdd(mul, add Input) Input {
 	return &MultiNode{a}
 }
 
+// Midicps converts MIDI note number to cycles per second.
+func (mn *MultiNode) Midicps() Input {
+	a := make([]*UgenNode, len(mn.nodes))
+	for i, n := range mn.nodes {
+		a[i] = UnaryOpMidicps(n.Rate(), n, n.numOutputs)
+	}
+	return &MultiNode{a}
+}
+
+// Neg is a convenience operator that multiplies a signal by -1.
+func (mn *MultiNode) Neg() Input {
+	a := make([]*UgenNode, len(mn.nodes))
+	for i, n := range mn.nodes {
+		a[i] = UnaryOpNeg(n.Rate(), n, n.numOutputs)
+	}
+	return &MultiNode{a}
+}
+
 // SoftClip adds distortion to the MultiNode.
 func (mn *MultiNode) SoftClip() Input {
 	a := make([]*UgenNode, len(mn.nodes))
