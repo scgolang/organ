@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"math"
 	"strings"
@@ -12,6 +13,12 @@ import (
 )
 
 func main() {
+	var (
+		deviceName string
+	)
+	flag.StringVar(&deviceName, "d", "keystation", "MIDI device name")
+	flag.Parse()
+
 	client, err := sc.NewClient("udp", "0.0.0.0:0", "127.0.0.1:57120", 5*time.Second)
 	if err != nil {
 		log.Fatal(err)
@@ -40,7 +47,7 @@ func main() {
 	if err := client.SendDef(def); err != nil {
 		log.Fatal(err)
 	}
-	packets, err := getPacketChan()
+	packets, err := getPacketChan(deviceName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,10 +65,11 @@ func main() {
 			}
 			continue
 		}
-		if pkt.Data[0] != 0x90 {
+		if pkt.Data[0] != 0x90 && pkt.Data[0] != 0x80 {
 			continue
 		}
 		gate := float32(0)
+
 		if pkt.Data[2] > 0 {
 			gate = float32(1)
 		} else {
@@ -141,26 +149,26 @@ func getVoices(n int, fundamental, pbend, amp sc.Input) []sc.Input {
 	return voices
 }
 
-func getPacketChan() (<-chan midi.Packet, error) {
+func getPacketChan(deviceName string) (<-chan midi.Packet, error) {
 	devices, err := midi.Devices()
 	if err != nil {
 		return nil, err
 	}
-	var keystation *midi.Device
+	var device *midi.Device
 
 	for _, d := range devices {
-		if strings.Contains(strings.ToLower(d.Name), "keystation") {
-			keystation = d
+		if strings.Contains(strings.ToLower(d.Name), deviceName) {
+			device = d
 			break
 		}
 	}
-	if keystation == nil {
-		return nil, errors.New("no keystation detected")
+	if device == nil {
+		return nil, errors.New("no device named " + deviceName + " detected")
 	}
-	if err := keystation.Open(); err != nil {
+	if err := device.Open(); err != nil {
 		return nil, err
 	}
-	return keystation.Packets()
+	return device.Packets()
 }
 
 func pbendRange(i int) float32 {
