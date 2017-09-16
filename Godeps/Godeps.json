@@ -14,8 +14,8 @@
 		},
 		{
 			"ImportPath": "github.com/scgolang/midi",
-			"Comment": "v0.2.0-2-g787e28a",
-			"Rev": "787e28a8102ee6b613b33d73c2ba98db2f97d23a"
+			"Comment": "v0.2.0-6-g5fdd6f2",
+			"Rev": "5fdd6f27f39f5eb5426d179005e0e5bb462d111b"
 		},
 		{
 			"ImportPath": "github.com/scgolang/osc",
