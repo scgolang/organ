@@ -165,6 +165,8 @@ func getPacketChan(deviceName string) (<-chan midi.Packet, error) {
 	if device == nil {
 		return nil, errors.New("no device named " + deviceName + " detected")
 	}
+	device.QueueSize = 16 // Arbitrary queue size.
+
 	if err := device.Open(); err != nil {
 		return nil, err
 	}
