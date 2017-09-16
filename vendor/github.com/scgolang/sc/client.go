@@ -14,19 +14,35 @@ import (
 // OSC addresses.
 // See http://doc.sccode.org/Reference/Server-Command-Reference.html.
 const (
-	statusAddress          = "/status"
-	statusReplyAddress     = "/status.reply"
-	gqueryTreeAddress      = "/g_queryTree"
-	gqueryTreeReplyAddress = "/g_queryTree.reply"
-	synthdefReceiveAddress = "/d_recv"
-	dumpOscAddress         = "/dumpOSC"
-	doneOscAddress         = "/done"
-	synthNewAddress        = "/s_new"
-	groupNewAddress        = "/g_new"
-	groupFreeAllAddress    = "/g_freeAll"
-	bufferAllocAddress     = "/b_alloc"
-	bufferReadAddress      = "/b_allocRead"
-	bufferGenAddress       = "/b_gen"
+	bufferAllocAddress         = "/b_alloc"
+	bufferGenAddress           = "/b_gen"
+	bufferInfoAddress          = "/b_info"
+	bufferQueryAddress         = "/b_query"
+	bufferReadAddress          = "/b_allocRead"
+	bufferReadChannelAddress   = "/b_allocReadChannel"
+	doneOscAddress             = "/done"
+	dumpOscAddress             = "/dumpOSC"
+	groupDeepFreeAddress       = "/g_deepFree"
+	groupDumpTreeAddress       = "/g_dumpTree"
+	groupFreeAllAddress        = "/g_freeAll"
+	groupHeadAddress           = "/g_head"
+	groupNewAddress            = "/g_new"
+	groupQueryTreeAddress      = "/g_queryTree"
+	groupQueryTreeReplyAddress = "/g_queryTree.reply"
+	groupTailAddress           = "/g_tail"
+	nodeFreeAddress            = "/n_free"
+	nodeFillAddress            = "/n_fill"
+	nodeMapAddress             = "/n_map"
+	nodeMapnAddress            = "/n_mapn"
+	nodeMapaAddress            = "/n_mapa"
+	nodeMapanAddress           = "/n_mapan"
+	nodeRunAddress             = "/n_run"
+	nodeSetAddress             = "/n_set"
+	nodeSetnAddress            = "/n_setn"
+	statusAddress              = "/status"
+	statusReplyAddress         = "/status.reply"
+	synthNewAddress            = "/s_new"
+	synthdefReceiveAddress     = "/d_recv"
 )
 
 // Arguments to dumpOSC command.
@@ -82,6 +98,7 @@ type Client struct {
 	addr    *net.UDPAddr
 	oscConn osc.Conn
 
+	bufferInfoChan chan osc.Message // bufferInfoChan relays /b_info messages
 	doneChan       chan osc.Message // doneChan relays /done messages
 	statusChan     chan osc.Message // statusChan relays /status.reply messages
 	gqueryTreeChan chan osc.Message // gqueryTreeChan relays /done messages
@@ -102,9 +119,10 @@ func NewClient(network, local, scsynth string, timeout time.Duration) (*Client, 
 	}
 	c := &Client{
 		errChan:        make(chan error),
-		statusChan:     make(chan osc.Message),
-		gqueryTreeChan: make(chan osc.Message),
+		bufferInfoChan: make(chan osc.Message),
 		doneChan:       make(chan osc.Message, numDoneHandlers),
+		gqueryTreeChan: make(chan osc.Message),
+		statusChan:     make(chan osc.Message),
 		addr:           addr,
 		nextSynthID:    1000,
 	}
@@ -116,7 +134,7 @@ func NewClient(network, local, scsynth string, timeout time.Duration) (*Client, 
 
 var (
 	defaultClient *Client
-	defaultGroup  *Group
+	defaultGroup  *GroupNode
 )
 
 // DefaultClient returns the default sc client.
@@ -134,6 +152,11 @@ func DefaultClient() (*Client, error) {
 		}
 	}
 	return defaultClient, nil
+}
+
+// AddDefaultGroup adds the default group.
+func (c *Client) AddDefaultGroup() (*GroupNode, error) {
+	return c.Group(DefaultGroupID, AddToTail, RootNodeID)
 }
 
 // Connect connects to an scsynth instance via UDP.
@@ -183,26 +206,153 @@ func (c *Client) Connect(addr string, timeout time.Duration) error {
 	return nil
 }
 
-// Status gets the status of scsynth with a timeout.
-// If the status request times out it returns ErrTimeout.
-func (c *Client) Status(timeout time.Duration) (*ServerStatus, error) {
-	statusReq := osc.Message{
-		Address: statusAddress,
+// DumpOSC sends a /dumpOSC message to scsynth
+// level should be DumpOff, DumpParsed, DumpContents, DumpAll
+func (c *Client) DumpOSC(level int32) error {
+	return c.oscConn.Send(osc.Message{
+		Address: dumpOscAddress,
+		Arguments: osc.Arguments{
+			osc.Int(level),
+		},
+	})
+}
+
+// FreeAll frees all nodes in a group
+func (c *Client) FreeAll(gids ...int32) error {
+	msg := osc.Message{
+		Address: groupFreeAllAddress,
 	}
-	if err := c.oscConn.Send(statusReq); err != nil {
+	for _, gid := range gids {
+		msg.Arguments = append(msg.Arguments, osc.Int(gid))
+	}
+	return c.oscConn.Send(msg)
+}
+
+// Group creates a group.
+func (c *Client) Group(id, action, target int32) (*GroupNode, error) {
+	msg := osc.Message{
+		Address: groupNewAddress,
+		Arguments: osc.Arguments{
+			osc.Int(id),
+			osc.Int(action),
+			osc.Int(target),
+		},
+	}
+	if err := c.oscConn.Send(msg); err != nil {
 		return nil, err
 	}
+	return newGroup(c, id), nil
+}
 
-	after := time.After(timeout)
+// NextSynthID gets the next available ID for creating a synth
+func (c *Client) NextSynthID() int32 {
+	return atomic.AddInt32(&c.nextSynthID, 1)
+}
 
+// NodeFree stops a node abruptly, removes it from its group, and frees its memory.
+// Using this method can cause a click if the node is not silent at the time it is freed.
+func (c *Client) NodeFree(id int32) error {
+	return c.oscConn.Send(osc.Message{
+		Address:   nodeFreeAddress,
+		Arguments: osc.Arguments{osc.Int(id)},
+	})
+}
+
+// NodeMap causes controls of a node to be read from a control bus.
+// The first argument is the node ID.
+// The second argument is a map from control names to control bus indices.
+func (c *Client) NodeMap(id int32, m map[string]int32) error {
+	msg := osc.Message{
+		Address: nodeMapAddress,
+		Arguments: osc.Arguments{
+			osc.Int(id),
+		},
+	}
+	for k, v := range m {
+		msg.Arguments = append(msg.Arguments, osc.String(k))
+		msg.Arguments = append(msg.Arguments, osc.Int(v))
+	}
+	return c.oscConn.Send(msg)
+}
+
+// NodeMapa causes controls of a node to be read from an audio bus.
+// The first argument is the node ID.
+// The second argument is a map from control names to audio bus indices.
+func (c *Client) NodeMapa(id int32, m map[string]int32) error {
+	msg := osc.Message{
+		Address: nodeMapaAddress,
+		Arguments: osc.Arguments{
+			osc.Int(id),
+		},
+	}
+	for k, v := range m {
+		msg.Arguments = append(msg.Arguments, osc.String(k))
+		msg.Arguments = append(msg.Arguments, osc.Int(v))
+	}
+	return c.oscConn.Send(msg)
+}
+
+// NodeSet sets a control value on a node.
+func (c *Client) NodeSet(id int32, ctls map[string]float32) error {
+	msg := osc.Message{
+		Address: nodeSetAddress,
+		Arguments: osc.Arguments{
+			osc.Int(id),
+		},
+	}
+	for k, v := range ctls {
+		msg.Arguments = append(msg.Arguments, osc.String(k))
+		msg.Arguments = append(msg.Arguments, osc.Float(v))
+	}
+	return c.oscConn.Send(msg)
+}
+
+// QueryGroup g_queryTree for a particular group.
+func (c *Client) QueryGroup(id int32) (*GroupNode, error) {
+	if err := c.oscConn.Send(osc.Message{
+		Address: groupQueryTreeAddress,
+		Arguments: osc.Arguments{
+			osc.Int(id),
+			osc.Int(1),
+		},
+	}); err != nil {
+		return nil, err
+	}
+	// wait for response
+	var resp osc.Message
 	select {
-	case _ = <-after:
-		return nil, ErrTimeout
-	case msg := <-c.statusChan:
-		return newStatus(msg)
-	case err := <-c.errChan:
-		return nil, err
+	case resp = <-c.gqueryTreeChan:
+	case <-time.After(2 * time.Second):
+		return nil, errors.New("timeout waiting for response")
 	}
+	if numArgs := len(resp.Arguments); numArgs < 3 {
+		return nil, fmt.Errorf("expected 3 arguments for message, got %d", numArgs)
+	}
+	// Throw away the flag that tells us we want to include synth controls in the reply.
+	// We already know we requested that!
+	resp.Arguments = resp.Arguments[1:]
+	return c.parseGroup(resp)
+}
+
+// SendAllDefs sends all the synthdefs that have been registered with RegisterSynthdef.
+func (c *Client) SendAllDefs() error {
+	// If you add to this map, please keep the keys in alphabetical order.
+	for name, f := range map[string]UgenFunc{
+		"grainbuf_mono":   defGrainBuf(1),
+		"grainbuf_stereo": defGrainBuf(2),
+		"in":              defIn,
+		"jpverb":          defJPverb,
+		"lfo":             defLFO,
+		"lfpulse":         defLFPulse,
+		"lfsaw":           defLFSaw,
+		"sine_a":          defSineA,
+		"sine_c":          defSineC,
+	} {
+		if err := c.SendDef(NewSynthdef(name, f)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SendDef sends a synthdef to scsynth.
@@ -246,15 +396,26 @@ ParseMessage:
 	return nil
 }
 
-// DumpOSC sends a /dumpOSC message to scsynth
-// level should be DumpOff, DumpParsed, DumpContents, DumpAll
-func (c *Client) DumpOSC(level int32) error {
-	return c.oscConn.Send(osc.Message{
-		Address: dumpOscAddress,
-		Arguments: osc.Arguments{
-			osc.Int(level),
-		},
-	})
+// Status gets the status of scsynth with a timeout.
+// If the status request times out it returns ErrTimeout.
+func (c *Client) Status(timeout time.Duration) (*ServerStatus, error) {
+	statusReq := osc.Message{
+		Address: statusAddress,
+	}
+	if err := c.oscConn.Send(statusReq); err != nil {
+		return nil, err
+	}
+
+	after := time.After(timeout)
+
+	select {
+	case _ = <-after:
+		return nil, ErrTimeout
+	case msg := <-c.statusChan:
+		return newStatus(msg)
+	case err := <-c.errChan:
+		return nil, err
+	}
 }
 
 // Synth creates a synth node.
@@ -313,180 +474,13 @@ func (c *Client) Synths(args []SynthArgs) error {
 	return c.oscConn.Send(bun)
 }
 
-// Group creates a group.
-func (c *Client) Group(id, action, target int32) (*Group, error) {
-	msg := osc.Message{
-		Address: groupNewAddress,
-		Arguments: osc.Arguments{
-			osc.Int(id),
-			osc.Int(action),
-			osc.Int(target),
-		},
-	}
-	if err := c.oscConn.Send(msg); err != nil {
-		return nil, err
-	}
-	return newGroup(c, id), nil
-}
-
-// AddDefaultGroup adds the default group.
-func (c *Client) AddDefaultGroup() (*Group, error) {
-	return c.Group(DefaultGroupID, AddToTail, RootNodeID)
-}
-
-// QueryGroup g_queryTree for a particular group.
-func (c *Client) QueryGroup(id int32) (*Group, error) {
-	msg := osc.Message{
-		Address: gqueryTreeAddress,
-		Arguments: osc.Arguments{
-			osc.Int(RootNodeID),
-		},
-	}
-	if err := c.oscConn.Send(msg); err != nil {
-		return nil, err
-	}
-	// wait for response
-	resp := <-c.gqueryTreeChan
-	return parseGroup(resp)
-}
-
-// ReadBuffer tells the server to read an audio file and
-// load it into a buffer
-func (c *Client) ReadBuffer(path string, num int32) (*Buffer, error) {
-	buf, err := c.sendBufReadMsg(path, num)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.awaitBufReadReply(buf); err != nil {
-
-	}
-	return buf, nil
-}
-
-// sendBufReadMsg sends a /b_allocRead command.
-func (c *Client) sendBufReadMsg(path string, num int32) (*Buffer, error) {
-	buf := newReadBuffer(path, num, c)
-	msg := osc.Message{
-		Address: bufferReadAddress,
-		Arguments: osc.Arguments{
-			osc.Int(buf.Num),
-			osc.String(path),
-		},
-	}
-	if err := c.oscConn.Send(msg); err != nil {
-		return nil, err
-	}
-	return buf, nil
-}
-
-// awaitBufReadReply waits for a reply to /b_allocRead
-func (c *Client) awaitBufReadReply(buf *Buffer) error {
-	var done osc.Message
-	select {
-	case done = <-c.doneChan:
-	case err := <-c.errChan:
-		return err
-	}
-
-	// error if this message was not an ack of the buffer read
-	if len(done.Arguments) != 2 {
-		return fmt.Errorf("expected two arguments to /done message")
-	}
-	addr, err := done.Arguments[0].ReadString()
-	if err != nil {
-		return err
-	}
-	if addr != bufferReadAddress {
-		c.doneChan <- done
-	}
-	bufnum, err := done.Arguments[1].ReadInt32()
-	if err != nil {
-		return err
-	}
-	if bufnum != buf.Num {
-		c.doneChan <- done
-	}
-	return nil
-}
-
-// AllocBuffer allocates a buffer on the server
-func (c *Client) AllocBuffer(frames, channels int) (*Buffer, error) {
-	buf, err := c.sendBufAllocMsg(frames, channels)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.awaitBufAllocReply(buf); err != nil {
-		return nil, err
-	}
-	return buf, nil
-}
-
-// sendBufAllocMsg sends a /b_alloc message
-func (c *Client) sendBufAllocMsg(frames, channels int) (*Buffer, error) {
-	buf := &Buffer{client: c}
-	msg := osc.Message{
-		Address: bufferAllocAddress,
-		Arguments: osc.Arguments{
-			osc.Int(buf.Num),
-			osc.Int(int32(frames)),
-			osc.Int(int32(channels)),
-		},
-	}
-	if err := c.oscConn.Send(msg); err != nil {
-		return nil, err
-	}
-	return buf, nil
-}
-
-// awaitBufAllocReply waits for a reply to /b_alloc
-func (c *Client) awaitBufAllocReply(buf *Buffer) error {
-	var done osc.Message
-	select {
-	case done = <-c.doneChan:
-	case err := <-c.errChan:
-		return err
-	}
-	// error if this message was not an ack of /b_alloc
-	if len(done.Arguments) != 2 {
-		return fmt.Errorf("expected two arguments to /done message")
-	}
-	addr, err := done.Arguments[0].ReadString()
-	if err != nil {
-		return err
-	}
-	if addr != bufferAllocAddress {
-		c.doneChan <- done
-
-	}
-	bufnum, err := done.Arguments[1].ReadInt32()
-	if err != nil {
-		return err
-	}
-	if bufnum != buf.Num {
-		c.doneChan <- done
-	}
-	return nil
-}
-
-// NextSynthID gets the next available ID for creating a synth
-func (c *Client) NextSynthID() int32 {
-	return atomic.AddInt32(&c.nextSynthID, 1)
-}
-
-// FreeAll frees all nodes in a group
-func (c *Client) FreeAll(gids ...int32) error {
-	msg := osc.Message{
-		Address: groupFreeAllAddress,
-	}
-	for _, gid := range gids {
-		msg.Arguments = append(msg.Arguments, osc.Int(gid))
-	}
-	return c.oscConn.Send(msg)
-}
-
 // addOscHandlers adds OSC handlers
 func (c *Client) oscHandlers() osc.Dispatcher {
 	return map[string]osc.MessageHandler{
+		bufferInfoAddress: osc.Method(func(msg osc.Message) error {
+			c.bufferInfoChan <- msg
+			return nil
+		}),
 		statusReplyAddress: osc.Method(func(msg osc.Message) error {
 			c.statusChan <- msg
 			return nil
@@ -495,7 +489,7 @@ func (c *Client) oscHandlers() osc.Dispatcher {
 			c.doneChan <- msg
 			return nil
 		}),
-		gqueryTreeReplyAddress: osc.Method(func(msg osc.Message) error {
+		groupQueryTreeReplyAddress: osc.Method(func(msg osc.Message) error {
 			c.gqueryTreeChan <- msg
 			return nil
 		}),

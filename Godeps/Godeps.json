@@ -4,36 +4,6 @@
 	"GodepVersion": "v79",
 	"Deps": [
 		{
-			"ImportPath": "github.com/awalterschulze/gographviz",
-			"Comment": "v1.0-25-g057e6a5",
-			"Rev": "057e6a5e9343c1e85264a73798ca7c7a197c8b69"
-		},
-		{
-			"ImportPath": "github.com/awalterschulze/gographviz/ast",
-			"Comment": "v1.0-25-g057e6a5",
-			"Rev": "057e6a5e9343c1e85264a73798ca7c7a197c8b69"
-		},
-		{
-			"ImportPath": "github.com/awalterschulze/gographviz/errors",
-			"Comment": "v1.0-25-g057e6a5",
-			"Rev": "057e6a5e9343c1e85264a73798ca7c7a197c8b69"
-		},
-		{
-			"ImportPath": "github.com/awalterschulze/gographviz/lexer",
-			"Comment": "v1.0-25-g057e6a5",
-			"Rev": "057e6a5e9343c1e85264a73798ca7c7a197c8b69"
-		},
-		{
-			"ImportPath": "github.com/awalterschulze/gographviz/parser",
-			"Comment": "v1.0-25-g057e6a5",
-			"Rev": "057e6a5e9343c1e85264a73798ca7c7a197c8b69"
-		},
-		{
-			"ImportPath": "github.com/awalterschulze/gographviz/token",
-			"Comment": "v1.0-25-g057e6a5",
-			"Rev": "057e6a5e9343c1e85264a73798ca7c7a197c8b69"
-		},
-		{
 			"ImportPath": "github.com/imdario/go-ulid",
 			"Rev": "80e2735d1c2c2b1d963bccaa2306f67e5f8d5da9"
 		},
@@ -44,18 +14,18 @@
 		},
 		{
 			"ImportPath": "github.com/scgolang/midi",
-			"Comment": "v0.2.0-1-g7b347e6",
-			"Rev": "7b347e6e37dc90b0b8c55fac15da153a94ccc33d"
+			"Comment": "v0.2.0-2-g787e28a",
+			"Rev": "787e28a8102ee6b613b33d73c2ba98db2f97d23a"
 		},
 		{
 			"ImportPath": "github.com/scgolang/osc",
-			"Comment": "v0.9.9-5-g973e996",
-			"Rev": "973e996e838584d697efc0d60b107dba525a0763"
+			"Comment": "v0.10.0",
+			"Rev": "c682aec2f858d4243bc62eb441ce897f28f9ef53"
 		},
 		{
 			"ImportPath": "github.com/scgolang/sc",
-			"Comment": "v0.1.3-24-g115b9d7",
-			"Rev": "115b9d7098a1219b460ebfcdc687c3fd4203c952"
+			"Comment": "v0.1.3-160-g2b87756",
+			"Rev": "2b87756659e2b72d97cec43b6896ed01c0365097"
 		}
 	]
 }

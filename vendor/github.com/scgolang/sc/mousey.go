@@ -1,5 +1,11 @@
 package sc
 
+// Warp constants.
+var (
+	WarpExp = C(1)
+	WarpLin = C(0)
+)
+
 // MouseY allpass delay with cubic interpolation
 type MouseY struct {
 	// Min is the value of this ugen's output when the
@@ -35,5 +41,5 @@ func (m *MouseY) defaults() {
 func (m MouseY) Rate(rate int8) Input {
 	CheckRate(rate)
 	(&m).defaults()
-	return UgenInput("MouseY", rate, 0, 1, m.Min, m.Max, m.Warp, m.Lag)
+	return NewInput("MouseY", rate, 0, 1, m.Min, m.Max, m.Warp, m.Lag)
 }

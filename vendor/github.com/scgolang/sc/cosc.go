@@ -1,9 +1,5 @@
 package sc
 
-import (
-	"fmt"
-)
-
 // COsc is a chorusing wavetable lookup oscillator.
 // Produces sum of 2 signals at
 //     freq +- (beats / 2)
@@ -33,8 +29,8 @@ func (cosc *COsc) defaults() {
 func (cosc COsc) Rate(rate int8) Input {
 	CheckRate(rate)
 	if cosc.BufNum == nil {
-		panic(fmt.Errorf("BufNum can not be nil"))
+		panic("COsc requires a buffer number")
 	}
 	(&cosc).defaults()
-	return UgenInput("COsc", rate, 0, 1, cosc.BufNum, cosc.Freq, cosc.Beats)
+	return NewInput("COsc", rate, 0, 1, cosc.BufNum, cosc.Freq, cosc.Beats)
 }

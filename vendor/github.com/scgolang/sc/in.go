@@ -22,11 +22,25 @@ func (in In) Rate(rate int8) Input {
 	(&in).defaults()
 
 	var (
-		uin = UgenInput("In", rate, 0, in.NumChannels, in.Bus)
+		uin = NewInput("In", rate, 0, in.NumChannels, in.Bus)
 		ins = make([]Input, in.NumChannels)
 	)
 	for i := range ins {
 		ins[i] = uin
 	}
 	return Multi(ins...)
+}
+
+func defIn(params Params) Ugen {
+	var (
+		in  = params.Add("in", 0)
+		out = params.Add("out", 0)
+	)
+	return Out{
+		Bus: out,
+		Channels: In{
+			NumChannels: 1,
+			Bus:         in,
+		}.Rate(AR),
+	}.Rate(AR)
 }
