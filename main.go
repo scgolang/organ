@@ -54,44 +54,46 @@ func main() {
 	var (
 		pbend = float32(1)
 	)
-	for pkt := range packets {
-		if pkt.Err != nil {
-			log.Fatal(pkt.Err)
-		}
-		if pkt.Data[0] == 0xE0 { // Pitch bend
-			pbend = pbendRange(int(pkt.Data[2]))
-			if err := syncActiveVoices(synths, pbend); err != nil {
-				log.Fatal(err)
+	for pkts := range packets {
+		for _, pkt := range pkts {
+			if pkt.Err != nil {
+				log.Fatal(pkt.Err)
 			}
-			continue
-		}
-		if pkt.Data[0] != 0x90 && pkt.Data[0] != 0x80 {
-			continue
-		}
-		gate := float32(0)
+			if pkt.Data[0] == 0xE0 { // Pitch bend
+				pbend = pbendRange(int(pkt.Data[2]))
+				if err := syncActiveVoices(synths, pbend); err != nil {
+					log.Fatal(err)
+				}
+				continue
+			}
+			if pkt.Data[0] != 0x90 && pkt.Data[0] != 0x80 {
+				continue
+			}
+			gate := float32(0)
 
-		if pkt.Data[2] > 0 {
-			gate = float32(1)
-		} else {
-			if err := synths[pkt.Data[1]].Set(map[string]float32{"gate": gate}); err != nil {
+			if pkt.Data[2] > 0 {
+				gate = float32(1)
+			} else {
+				if err := synths[pkt.Data[1]].Set(map[string]float32{"gate": gate}); err != nil {
+					log.Fatal(err)
+				}
+				synths[pkt.Data[1]] = nil
+				continue
+			}
+			ctls = map[string]float32{
+				"amp":         float32(pkt.Data[2]) / float32(127),
+				"fundamental": sc.Midicps(float32(pkt.Data[1])),
+				"pbend":       pbend,
+				"gate":        gate,
+				"out":         bus,
+			}
+			id = client.NextSynthID()
+			synth, err := group.Synth("organ_voice", id, sc.AddToTail, ctls)
+			if err != nil {
 				log.Fatal(err)
 			}
-			synths[pkt.Data[1]] = nil
-			continue
+			synths[pkt.Data[1]] = synth
 		}
-		ctls = map[string]float32{
-			"amp":         float32(pkt.Data[2]) / float32(127),
-			"fundamental": sc.Midicps(float32(pkt.Data[1])),
-			"pbend":       pbend,
-			"gate":        gate,
-			"out":         bus,
-		}
-		id = client.NextSynthID()
-		synth, err := group.Synth("organ_voice", id, sc.AddToTail, ctls)
-		if err != nil {
-			log.Fatal(err)
-		}
-		synths[pkt.Data[1]] = synth
 	}
 }
 
@@ -149,7 +151,7 @@ func getVoices(n int, fundamental, pbend, amp sc.Input) []sc.Input {
 	return voices
 }
 
-func getPacketChan(deviceName string) (<-chan midi.Packet, error) {
+func getPacketChan(deviceName string) (<-chan []midi.Packet, error) {
 	devices, err := midi.Devices()
 	if err != nil {
 		return nil, err
